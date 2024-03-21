@@ -1,4 +1,5 @@
 import pandas as pd
+import math
 import folium
 from folium.plugins import MousePosition
 import branca
@@ -177,7 +178,7 @@ def get_earthquake_map(df):
             
         folium.CircleMarker(
             location=[row.latitude, row.longitude],
-            radius=round(row.magnitude) + 1,
+            radius=math.ceil(row.magnitude),
             color='black',
             opacity=1.0,
             weight=1.0,
