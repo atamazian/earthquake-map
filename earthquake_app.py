@@ -388,6 +388,8 @@ with col2:
                 'max_depth': depth_max,
             })
 
+    st.write("Uses data from USGS Earthquake Catalog, courtesy of the U.S. Geological Survey")
+
 with col1:
     m = get_map(data_params)
     st_data = st_folium(m, width=1000, height=600)
