@@ -111,7 +111,7 @@ def get_earthquake_map(df):
         min_zoom=min_zoom
        )
     
-    m = folium.Map(location=[0, 0], tiles=tile_graysale, zoom_start=4, min_zoom=min_zoom, control_scale=True)
+    m = folium.Map(location=[0, 0], tiles=tile_graysale, zoom_start=2, min_zoom=min_zoom, control_scale=True)
 
     folium.TileLayer(
         tiles = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
