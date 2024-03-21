@@ -331,8 +331,8 @@ def get_map(params):
         print('No earthquakes found! Please change selection options.')
         return None
     
-st.set_page_config(page_title="Interactive Earthquake Viewer", layout="wide")
-st.title("Interactive Earthquake Viewer")
+st.set_page_config(page_title="Interactive Earthquake Map", layout="wide")
+st.title("Interactive Earthquake Map")
 
 data_params = {
     'use_circle_search': False,
