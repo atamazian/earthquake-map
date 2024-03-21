@@ -344,7 +344,7 @@ data_params = {
 col1, col2 = st.columns([0.8, 0.2])
 
 with col2:
-    data_params['limit'] = st.number_input('Max earthquakes', min_value=10, max_value=20_000, value=1000, step=1)
+    data_params['limit'] = st.number_input('Max earthquakes', min_value=10, max_value=20_000, value=100, step=1)
     
     order = st.selectbox('Select by',
                         ['Newest', 'Largest'])
