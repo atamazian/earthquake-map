@@ -390,4 +390,4 @@ with col2:
 
 with col1:
     m = get_map(data_params)
-    st_data = st_folium(m, width=800, height=600)
+    st_data = st_folium(m, width=1000, height=600)
