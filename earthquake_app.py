@@ -177,7 +177,7 @@ def get_earthquake_map(df):
             
         folium.CircleMarker(
             location=[row.latitude, row.longitude],
-            radius=round(row.magnitude),
+            radius=round(row.magnitude) + 1,
             color='black',
             opacity=1.0,
             weight=1.0,
