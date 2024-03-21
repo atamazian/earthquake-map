@@ -1,5 +1,4 @@
 import pandas as pd
-import math
 import folium
 from folium.plugins import MousePosition
 import branca
@@ -178,7 +177,7 @@ def get_earthquake_map(df):
             
         folium.CircleMarker(
             location=[row.latitude, row.longitude],
-            radius=math.ceil(row.magnitude),
+            radius=round(abs(row.magnitude)) + 1,
             color='black',
             opacity=1.0,
             weight=1.0,
@@ -276,15 +275,15 @@ def get_earthquake_map(df):
     <div class='mag-legend'>
         Magnitude<br>
         <svg xmlns="http://www.w3.org/2000/svg" width="180" height="40">
-            <circle cx="10" cy="9" r="9" fill="gray" stroke="black"/>
-            <circle cx="30" cy="9" r="8" fill="gray" stroke="black"/>
-            <circle cx="50" cy="9" r="7" fill="gray" stroke="black"/>
-            <circle cx="70" cy="9" r="6" fill="gray" stroke="black"/>
-            <circle cx="90" cy="9" r="5" fill="gray" stroke="black"/>
-            <circle cx="110" cy="9" r="4" fill="gray" stroke="black"/>
-            <circle cx="130" cy="9" r="3" fill="gray" stroke="black"/>
-            <circle cx="150" cy="9" r="2" fill="gray" stroke="black"/>
-            <circle cx="170" cy="9" r="1" fill="gray" stroke="black"/>
+            <circle cx="10" cy="9" r="10" fill="gray" stroke="black"/>
+            <circle cx="30" cy="9" r="9" fill="gray" stroke="black"/>
+            <circle cx="50" cy="9" r="8" fill="gray" stroke="black"/>
+            <circle cx="70" cy="9" r="7" fill="gray" stroke="black"/>
+            <circle cx="90" cy="9" r="6" fill="gray" stroke="black"/>
+            <circle cx="110" cy="9" r="5" fill="gray" stroke="black"/>
+            <circle cx="130" cy="9" r="4" fill="gray" stroke="black"/>
+            <circle cx="150" cy="9" r="3" fill="gray" stroke="black"/>
+            <circle cx="170" cy="9" r="2" fill="gray" stroke="black"/>
         </svg>
         <div class="number-2" style="left: 10px;">9</div>
         <div class="number-2" style="left: 30px;">8</div>
@@ -332,7 +331,7 @@ def get_map(params):
         print('No earthquakes found! Please change selection options.')
         return None
     
-
+st.set_page_config(page_title="Interactive Earthquake Viewer", layout="wide")
 st.title("Interactive Earthquake Viewer")
 
 data_params = {
