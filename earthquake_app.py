@@ -81,26 +81,21 @@ def get_earthquake_data(params):
     })
     return df
 
-#@st.cache_data
-#def get_plate_boundaries():
-#    geo_json_url = 'https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json'
-#    boundaries = folium.GeoJson(
-#            geo_json_url,
-#            name='Plate Boundaries',
-#            style_function=lambda feature: {
-#                    "color": "red",
-#                    "weight": 0.75,
-#                    "dashArray": "5, 5",
-#                },
-#        )
-#    return boundaries
+def get_plate_boundaries():
+    geo_json_url = 'https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json'
+    boundaries = folium.GeoJson(
+            geo_json_url,
+            name='Plate Boundaries',
+            style_function=lambda feature: {
+                    "color": "red",
+                    "weight": 0.75,
+                    "dashArray": "5, 5",
+                },
+        )
+    return boundaries
 
-def get_earthquake_map(df):
-
-    
-
+def get_earthquake_map(df, show_pbounds=False):
     min_zoom = 2
-    color_lst = ['purple', 'blue', 'green', 'yellow', 'orange', 'red']
     
     tile_graysale = folium.TileLayer(
         tiles = 'cartodb positron',
@@ -133,8 +128,6 @@ def get_earthquake_map(df):
         min_zoom=min_zoom
     ).add_to(m)
 
-
-    #mc = MarkerCluster()
 
     for _, row in df.iterrows():
         if row.depth > 500:
@@ -186,9 +179,9 @@ def get_earthquake_map(df):
             popup=popup
         ).add_to(m)
 
-    #mc.add_to(map)
-    #plate_boundaries = get_plate_boundaries()
-    #plate_boundaries.add_to(m)
+    if show_pbounds:
+        plate_boundaries = get_plate_boundaries()
+        plate_boundaries.add_to(m)
 
     folium.LayerControl().add_to(m)
 
@@ -325,7 +318,7 @@ def get_earthquake_map(df):
 def get_map(params):
     df = get_earthquake_data(params)
     if df is not None:
-        map = get_earthquake_map(df)
+        map = get_earthquake_map(df, params['show_pbounds'])
         return map
     else:
         print('No earthquakes found! Please change selection options.')
@@ -341,12 +334,14 @@ data_params = {
     'circle_radius': 2
 }
 
-col1, col2 = st.columns([0.8, 0.2])
-
-with col2:
-    data_params['limit'] = st.number_input('Max earthquakes', min_value=10, max_value=20_000, value=100, step=1)
+with st.sidebar:
+    limit_lst = [
+        10, 20, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+        1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 10000, 20000
+    ]
+    data_params['limit'] = st.selectbox('Max earthquakes', limit_lst, index=3)
     
-    order = st.selectbox('Select by',
+    order = st.selectbox('Select earthquakes by',
                         ['Newest', 'Largest'])
 
     if order == 'Newest':
@@ -356,7 +351,7 @@ with col2:
 
     with st.expander('Time Range'):
         select_earliest = st.checkbox('Earliest Available', True)
-        yesterday = datetime.now() - timedelta(1)
+        yesterday = datetime.now() - timedelta(7)
         start_time = st.date_input('From', value=yesterday, disabled=select_earliest)
 
         select_latest = st.checkbox('Latest Available', True)
@@ -369,8 +364,8 @@ with col2:
             data_params['end_time'] = end_time.isoformat()
 
     with st.expander('Magnitude Range', expanded=False):
-        select_mag = st.checkbox('All Magnitude values', True)
-        mag_min = st.number_input('Min', min_value=0, max_value=9, value=3, disabled=select_mag)
+        select_mag = st.checkbox('All Magnitude Values', True)
+        mag_min = st.number_input('Min', min_value=0, max_value=9, value=0, disabled=select_mag)
         mag_max = st.number_input('Max', min_value=1, max_value=10, value=10, disabled=select_mag)
         if not select_mag:
             data_params.update({
@@ -379,7 +374,7 @@ with col2:
             })
 
     with st.expander('Depth Range', expanded=False):
-        select_depth = st.checkbox('All Depth values', True)
+        select_depth = st.checkbox('All Depth Values', True)
         depth_min = st.number_input('Min', min_value=0, max_value=799, value=0, disabled=select_depth)
         depth_max = st.number_input('Max', min_value=1, max_value=800, value=800, disabled=select_depth)
         if not select_depth:
@@ -388,8 +383,9 @@ with col2:
                 'max_depth': depth_max,
             })
 
+    data_params['show_pbounds'] = st.checkbox('Show plate boundaries', False)
+
     st.write("Uses data from USGS Earthquake Catalog, courtesy of the U.S. Geological Survey")
 
-with col1:
-    m = get_map(data_params)
-    st_data = st_folium(m, width=1000, height=600)
+m = get_map(data_params)
+st_data = st_folium(m, width=1000, height=600)
