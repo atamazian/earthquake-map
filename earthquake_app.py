@@ -6,7 +6,11 @@ from branca.element import Template, MacroElement
 import requests
 import streamlit as st
 from streamlit_folium import st_folium, folium_static
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from streamlit_autorefresh import st_autorefresh
+import streamlit.components.v1 as components
+
+
 
 @st.cache_data
 def get_earthquake_data(params):
@@ -24,9 +28,6 @@ def get_earthquake_data(params):
     
     if 'order' in params:
         req_url += f'&orderby={params["order"]}'
-
-
-
 
     if 'min_magnitude' in params:
         min_magnitude = params['min_magnitude']
@@ -161,7 +162,7 @@ def get_earthquake_map(df, show_pbounds=False):
             <div style="font-family: Arial;">
                 <h3><a href={row.url} target="_top">{row.title}</a></h3>
                 <font color="grey">Time:</font> {row.date_time} (UTC)<br>
-                <font color="grey">Location:</font> {abs(row.latitude)}&deg{ns_hem} {abs(row.longitude)}&deg{we_hem}<br>
+                <font color="grey">Location:</font> {round(abs(row.latitude), 3)}&deg{ns_hem} {round(abs(row.longitude), 3)}&deg{we_hem}<br>
                 <font color="grey">Depth:</font> {row.depth} km
             </div>
         """
@@ -191,128 +192,6 @@ def get_earthquake_map(df, show_pbounds=False):
         lng_formatter=formatter,
     ).add_to(m)
 
-    # Create the legend template as an HTML element
-    depth_legend_template = """
-    {% macro html(this, kwargs) %}
-    <div id='maplegend' class='maplegend' 
-        style='position: absolute; z-index: 9999; background-color: rgba(255, 255, 255, 0.5);
-        border-radius: 6px; padding: 10px; font-size: 10.5px; left: 5px; bottom: 120px;'>
-
-    Depth<br><br>
-    <div class="colormap-container">
-        <div class="colormap"></div><br>
-        <div class="number" style="top: -7px;">0</div>
-        <div class="number" style="top: 2%;">35</div>
-        <div class="number" style="top: 8%;">70</div>
-        <div class="number" style="top: 17%;">150</div>
-        <div class="number" style="top: 35%;">300</div>
-        <div class="number" style="top: 60%;">500</div>
-        <div class="number" style="top: 97%;">800</div>
-    </div>
-
-    <style type='text/css'>
-    .colormap-container {
-        position: relative;
-        width: 30px;
-        height: 200px;
-        margin-right: 10px;
-        float: left;
-    }
-
-    .colormap {
-        width: 10px;
-        height: 200px;
-        background: linear-gradient(to bottom, 
-            #a020f0 0%,
-            #a020f0 4.3756%,
-            #0000ff 4.375%,
-            #0000ff 8.75%,
-            #008000 8.75%,
-            #008000 18.75%, 
-            #ffff00 18.75%,
-            #ffff00 37.5%,
-            #ffa500 37.5%,
-            #ffa500 62.5%,
-            #ff0000 62.5%,
-            #ff0000 100%
-        );
-    }
-
-    /* Define the number divs */
-    .number {
-        position: absolute;
-        bottom: 0;
-        left: 70%;
-        transform: translateX(-50%);
-        font-size: 9px;
-        color: #333;
-    }
-
-
-    </style>
-    {% endmacro %}
-    """
-
-    # Add the legend to the map
-    macro = MacroElement()
-    macro._template = Template(depth_legend_template)
-    m.get_root().add_child(macro)
-
-    # Create the legend template as an HTML element
-    mag_legend_template = """
-    {% macro html(this, kwargs) %}
-    <div id='maplegend' class='maplegend' 
-        style='position: absolute; z-index: 9999; background-color: rgba(255, 255, 255, 0.5);
-        border-radius: 6px; padding: 10px; font-size: 10.5px; left: 0px; bottom: -70px;'>
-
-    <div class='mag-legend'>
-        Magnitude<br>
-        <svg xmlns="http://www.w3.org/2000/svg" width="180" height="40">
-            <circle cx="10" cy="9" r="10" fill="gray" stroke="black"/>
-            <circle cx="30" cy="9" r="9" fill="gray" stroke="black"/>
-            <circle cx="50" cy="9" r="8" fill="gray" stroke="black"/>
-            <circle cx="70" cy="9" r="7" fill="gray" stroke="black"/>
-            <circle cx="90" cy="9" r="6" fill="gray" stroke="black"/>
-            <circle cx="110" cy="9" r="5" fill="gray" stroke="black"/>
-            <circle cx="130" cy="9" r="4" fill="gray" stroke="black"/>
-            <circle cx="150" cy="9" r="3" fill="gray" stroke="black"/>
-            <circle cx="170" cy="9" r="2" fill="gray" stroke="black"/>
-        </svg>
-        <div class="number-2" style="left: 10px;">9</div>
-        <div class="number-2" style="left: 30px;">8</div>
-        <div class="number-2" style="left: 50px;">7</div>
-        <div class="number-2" style="left: 70px;">6</div>
-        <div class="number-2" style="left: 90px;">5</div>
-        <div class="number-2" style="left: 110px;">4</div>
-        <div class="number-2" style="left: 130px;">3</div>
-        <div class="number-2" style="left: 150px;">2</div>
-        <div class="number-2" style="left: 170px;">1</div>
-        
-    </div>
-    </div> 
-    <style type='text/css'>
-    .mag-legend {
-        position: relative;
-        width: 180px;
-        height: 40px;
-    }
-    .number-2 {
-        position: absolute;
-        bottom: -10px;
-        transform: translateX(-50%);
-        font-size: 12px;
-        color: #333;
-    }
-    </style>
-    {% endmacro %}
-    """
-
-
-    # Add the legend to the map
-    macro = MacroElement()
-    macro._template = Template(mag_legend_template)
-    m.get_root().add_child(macro)
-
     return m
 
 def get_map(params):
@@ -323,69 +202,220 @@ def get_map(params):
     else:
         print('No earthquakes found! Please change selection options.')
         return None
+
+def app():
+    st.set_page_config(page_title="Interactive Earthquake Map", layout="wide")
+    st.markdown(f"""
+        <style>
+        iframe {{
+            width: inherit;
+        }}
+        </style>
+    """
+    , unsafe_allow_html=True)
+
     
-st.set_page_config(page_title="Interactive Earthquake Map", layout="wide")
-st.title("Interactive Earthquake Map")
+    data_params = {
+        'use_circle_search': False,
+        'circle_lat': 0,
+        'circle_long': 0,
+        'circle_radius': 2
+    }
 
-data_params = {
-    'use_circle_search': False,
-    'circle_lat': 0,
-    'circle_long': 0,
-    'circle_radius': 2
-}
+    with st.sidebar:
+        st.subheader("Options")
+        with st.expander('Limits', expanded=True):
+            limit_lst = [
+                10, 20, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+                1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 10000, 20000
+            ]
+            data_params['limit'] = st.selectbox('Max earthquakes', limit_lst, index=limit_lst.index(1000))
+            order = st.selectbox('Select earthquakes by',
+                                ['Newest', 'Largest'])
 
-with st.sidebar:
-    limit_lst = [
-        10, 20, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
-        1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 10000, 20000
-    ]
-    data_params['limit'] = st.selectbox('Max earthquakes', limit_lst, index=3)
+            if order == 'Newest':
+                data_params['order'] = 'time'
+            else:
+                data_params['order'] = 'magnitude'
+
+        with st.expander('Period'):
+            time_range = st.radio(
+                "Select time range:",
+                ["Today", "This week", "This month", "This year", "All time", "Custom range"])
+            
+            #select_earliest = st.checkbox('Earliest Available', True)
+
+
+            #select_latest = st.checkbox('Latest Available', True)
+            if time_range == "Today":
+                data_params['start_time'] = datetime.combine(date.today(), datetime.min.time()).isoformat()
+                data_params['end_time'] = datetime.now().isoformat()
+            elif time_range == "This week":
+                dt = datetime.combine(date.today(), datetime.min.time())
+                data_params['start_time'] = (dt - timedelta(days=dt.weekday())).isoformat()
+                data_params['end_time'] = datetime.now().isoformat()
+            elif time_range == "This month":
+                data_params['start_time'] = datetime.combine(date.today().replace(day=1), datetime.min.time())
+                data_params['end_time'] = datetime.now().isoformat()
+            elif time_range == "This year":
+                data_params['start_time'] = datetime.combine(date.today().replace(day=1, month=1), datetime.min.time())
+                data_params['end_time'] = datetime.now().isoformat()
+            elif time_range == "Custom range":
+                yesterday = datetime.combine(date.today(), datetime.min.time()) - timedelta(1)
+                start_time = st.date_input('From', value=yesterday)
+                end_time = st.date_input('To', value='today')
+                data_params['start_time'] = start_time.isoformat()
+                data_params['end_time'] = end_time.isoformat()
+            else:
+                pass
+
+        with st.expander('Magnitude Range', expanded=False):
+            select_mag = st.checkbox('All Values', value=True, key="chk_mag")
+            mag_min = st.number_input('Min', min_value=0, max_value=9, value=0, disabled=select_mag)
+            mag_max = st.number_input('Max', min_value=1, max_value=10, value=10, disabled=select_mag)
+            if not select_mag:
+                data_params.update({
+                    'min_magnitude': mag_min,
+                    'max_magnitude': mag_max,
+                })
+
+        with st.expander('Depth Range', expanded=False):
+            select_depth = st.checkbox('All Values', value=True, key="chk_depth")
+            depth_min = st.number_input('Min', min_value=0, max_value=799, value=0, disabled=select_depth)
+            depth_max = st.number_input('Max', min_value=1, max_value=800, value=800, disabled=select_depth)
+            if not select_depth:
+                data_params.update({
+                    'min_depth': depth_min,
+                    'max_depth': depth_max,
+                })
+
+        with st.expander('Plate Boundaries', expanded=False):
+            data_params['show_pbounds'] = st.checkbox('Enable', key="chk_boundaries")
+
+        with st.expander('Auto Refresh', expanded=False):
+            ar = st.checkbox('Enable', key="chk_ar")
+            ar_period = st.slider('Interval (in min)', 0.5, 60., value=10., step=0.5, disabled=not ar)
+        st.write(f"Last updated on {datetime.now().isoformat()}")
+        st.write("Uses data from USGS Earthquake Catalog, courtesy of the U.S. Geological Survey")
+
+    if ar:
+        st_autorefresh(interval=ar_period*60*1000)
     
-    order = st.selectbox('Select earthquakes by',
-                        ['Newest', 'Largest'])
+    col1, col2 = st.columns([0.9, 0.1])
 
-    if order == 'Newest':
-        data_params['order'] = 'time'
-    else:
-        data_params['order'] = 'magnitude'
+    with col1:
+        m = get_map(data_params)
+        folium_static(m)
 
-    with st.expander('Time Range'):
-        select_earliest = st.checkbox('Earliest Available', True)
-        yesterday = datetime.now() - timedelta(7)
-        start_time = st.date_input('From', value=yesterday, disabled=select_earliest)
+    with col2:
+        components.html(
+            """
+            <div id='maplegend' class='maplegend' 
+                style='position: absolute; z-index: 9999; background-color: rgba(255, 255, 255, 0.5);
+                border-radius: 6px; padding: 10px; font-size: 10.5px;'>
 
-        select_latest = st.checkbox('Latest Available', True)
-        end_time = st.date_input('To', value='today', disabled=select_latest)
-        
-        if not select_earliest:
-            data_params['start_time'] = start_time.isoformat()
+            Depth (km)<br><br>
+            <div class="colormap-container">
+                <div class="colormap"></div><br>
+                <div class="number" style="top: -7px;">0</div>
+                <div class="number" style="top: 2%;">35</div>
+                <div class="number" style="top: 8%;">70</div>
+                <div class="number" style="top: 17%;">150</div>
+                <div class="number" style="top: 35%;">300</div>
+                <div class="number" style="top: 60%;">500</div>
+                <div class="number" style="top: 97%;">800</div>
+            </div>
 
-        if not select_latest:
-            data_params['end_time'] = end_time.isoformat()
+            <style type='text/css'>
+            .colormap-container {
+                position: relative;
+                width: 30px;
+                height: 200px;
+                margin-right: 10px;
+                float: left;
+            }
 
-    with st.expander('Magnitude Range', expanded=False):
-        select_mag = st.checkbox('All Magnitude Values', True)
-        mag_min = st.number_input('Min', min_value=0, max_value=9, value=0, disabled=select_mag)
-        mag_max = st.number_input('Max', min_value=1, max_value=10, value=10, disabled=select_mag)
-        if not select_mag:
-            data_params.update({
-                'min_magnitude': mag_min,
-                'max_magnitude': mag_max,
-            })
+            .colormap {
+                width: 10px;
+                height: 200px;
+                background: linear-gradient(to bottom, 
+                    #a020f0 0%,
+                    #a020f0 4.3756%,
+                    #0000ff 4.375%,
+                    #0000ff 8.75%,
+                    #008000 8.75%,
+                    #008000 18.75%, 
+                    #ffff00 18.75%,
+                    #ffff00 37.5%,
+                    #ffa500 37.5%,
+                    #ffa500 62.5%,
+                    #ff0000 62.5%,
+                    #ff0000 100%
+                );
+            }
 
-    with st.expander('Depth Range', expanded=False):
-        select_depth = st.checkbox('All Depth Values', True)
-        depth_min = st.number_input('Min', min_value=0, max_value=799, value=0, disabled=select_depth)
-        depth_max = st.number_input('Max', min_value=1, max_value=800, value=800, disabled=select_depth)
-        if not select_depth:
-            data_params.update({
-                'min_depth': depth_min,
-                'max_depth': depth_max,
-            })
+            /* Define the number divs */
+            .number {
+                position: absolute;
+                bottom: 0;
+                left: 70%;
+                transform: translateX(-50%);
+                font-size: 9px;
+                color: #333;
+            }
 
-    data_params['show_pbounds'] = st.checkbox('Show plate boundaries', False)
 
-    st.write("Uses data from USGS Earthquake Catalog, courtesy of the U.S. Geological Survey")
+            </style>
+            """,
+        height=260)
+        components.html(
+            """
+            <div class='mag-legend' 
+                style='position: absolute; z-index: 9999; background-color: rgba(255, 255, 255, 0.5);
+                border-radius: 6px; padding: 10px; font-size: 10.5px;'>
+                Magnitude
+                <svg xmlns="http://www.w3.org/2000/svg" width="50" height="1500">
+                    <circle cx="20" cy="30" r="11" fill="gray" stroke="black"/>
+                    <circle cx="20" cy="60" r="10" fill="gray" stroke="black"/>
+                    <circle cx="20" cy="90" r="9" fill="gray" stroke="black"/>
+                    <circle cx="20" cy="120" r="8" fill="gray" stroke="black"/>
+                    <circle cx="20" cy="150" r="7" fill="gray" stroke="black"/>
+                    <circle cx="20" cy="180" r="6" fill="gray" stroke="black"/>
+                    <circle cx="20" cy="210" r="5" fill="gray" stroke="black"/>
+                    <circle cx="20" cy="240" r="4" fill="gray" stroke="black"/>
+                    <circle cx="20" cy="270" r="3" fill="gray" stroke="black"/>
+                    <circle cx="20" cy="300" r="2" fill="gray" stroke="black"/>
+                </svg>
+                <div class="number" style="top: 45px;">10</div>
+                <div class="number" style="top: 75px;">9</div>
+                <div class="number" style="top: 105px;">8</div>
+                <div class="number" style="top: 135px;">7</div>
+                <div class="number" style="top: 165px;">6</div>
+                <div class="number" style="top: 195px;">5</div>
+                <div class="number" style="top: 225px;">4</div>
+                <div class="number" style="top: 255px;">3</div>
+                <div class="number" style="top: 285px;">2</div>
+                <div class="number" style="top: 315px;">1</div>
+                
+            </div>
+            <style type='text/css'>
+                .mag-legend {
+                    position: relative;
+                    width: 50px;
+                    height: 320px;
+                }
+                .number {
+                    position: absolute;
+                    bottom: 0;
+                    left: 75%;
+                    transform: translateX(-50%);
+                    font-size: 12px;
+                    color: #333;
+                }
+            </style>
+            
+            """,
+    height=400)
 
-m = get_map(data_params)
-st_data = st_folium(m, width=1000, height=600)
+
+app()
