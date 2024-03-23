@@ -1,3 +1,5 @@
 folium
 streamlit_folium
 streamlit_autorefresh
+streamlit_javascript
+pytz

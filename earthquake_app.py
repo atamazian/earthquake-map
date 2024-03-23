@@ -2,13 +2,16 @@ import pandas as pd
 import folium
 from folium.plugins import MousePosition
 import branca
-import branca.colormap as cmp
 import requests
 import streamlit as st
-from streamlit_folium import st_folium, folium_static
+from streamlit_folium import folium_static
 from datetime import date, datetime, timedelta, timezone
 from streamlit_autorefresh import st_autorefresh
 import streamlit.components.v1 as components
+from streamlit_javascript import st_javascript
+import pytz
+
+# TODO: Fix timezone switch
 
 def utc_to_local(utc_dt):
     return utc_dt.replace(tzinfo=timezone.utc).astimezone(tz=None)
@@ -416,21 +419,20 @@ def app():
         data_params['show_pbounds'] = st.checkbox('Show Plate Boundaries')
 
         
-
-
-    
     col1, col2 = st.columns([0.8, 0.2])
 
-    with col1:
-        m = get_map(data_params)
-        folium_static(m)
+    tz = st_javascript("""await (async () => {
+                const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                console.log(userTimezone)
+                return userTimezone
+    })().then(returnValue => returnValue)""")
 
     with col2:
         ar = st.checkbox('Auto Update', key="chk_ar")
         if data_params['use_utc']:
             st.caption(datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S (UTC%z)'))
         else:
-            st.caption(utc_to_local(datetime.now(timezone.utc)).strftime('%Y-%m-%d %H:%M:%S (UTC%z)'))
+            st.caption(datetime.now(pytz.timezone(tz)).strftime('%Y-%m-%d %H:%M:%S (UTC%z)'))
         if ar:
             st_autorefresh(interval=1*60*1000)
         if st.button("Refresh Earthquakes", disabled=ar):
@@ -444,6 +446,11 @@ def app():
             data_params['use_utc'] = False
         else:
             data_params['use_utc'] = True
+
+    with col1:
+        m = get_map(data_params)
+        folium_static(m)
+
 
     st.caption("Uses data from USGS Earthquake Catalog, courtesy of the U.S. Geological Survey")
 
