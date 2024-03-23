@@ -10,6 +10,7 @@ from streamlit_autorefresh import st_autorefresh
 import streamlit.components.v1 as components
 from streamlit_javascript import st_javascript
 import pytz
+import time
 
 # TODO: Fix timezone switch
 
@@ -426,6 +427,8 @@ def app():
                 console.log(userTimezone)
                 return userTimezone
     })().then(returnValue => returnValue)""")
+
+    time.sleep(1)
 
     with col2:
         ar = st.checkbox('Auto Update', key="chk_ar")
