@@ -2,14 +2,16 @@ import pandas as pd
 import folium
 from folium.plugins import MousePosition
 import branca
-from branca.element import Template, MacroElement
+import branca.colormap as cmp
 import requests
 import streamlit as st
 from streamlit_folium import st_folium, folium_static
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from streamlit_autorefresh import st_autorefresh
 import streamlit.components.v1 as components
 
+def utc_to_local(utc_dt):
+    return utc_dt.replace(tzinfo=timezone.utc).astimezone(tz=None)
 
 
 @st.cache_data
@@ -95,7 +97,7 @@ def get_plate_boundaries():
         )
     return boundaries
 
-def get_earthquake_map(df, show_pbounds=False):
+def get_earthquake_map(df, show_pbounds=False, utc_time=False):
     min_zoom = 2
     
     tile_graysale = folium.TileLayer(
@@ -157,17 +159,22 @@ def get_earthquake_map(df, show_pbounds=False):
             we_hem = 'W'
         else:
             we_hem = ''
+
+        if utc_time:
+            earthquake_time = datetime.strptime(row.date_time, '%y/%m/%d %H:%M:%S').strftime('%Y-%m-%d %H:%M:%S (UTC%z)')
+        else:
+            earthquake_time = utc_to_local(datetime.strptime(row.date_time, '%y/%m/%d %H:%M:%S')).astimezone().strftime('%Y-%m-%d %H:%M:%S (UTC%z)')
         
         popup_html = f"""
             <div style="font-family: Arial;">
                 <h3><a href={row.url} target="_top">{row.title}</a></h3>
-                <font color="grey">Time:</font> {row.date_time} (UTC)<br>
+                <font color="grey">Time:</font> {earthquake_time}<br>
                 <font color="grey">Location:</font> {round(abs(row.latitude), 3)}&deg{ns_hem} {round(abs(row.longitude), 3)}&deg{we_hem}<br>
-                <font color="grey">Depth:</font> {row.depth} km
+                <font color="grey">Depth:</font> {round(row.depth, 1)} km
             </div>
         """
 
-        popup = folium.Popup(branca.element.IFrame(html=popup_html, width=300, height=150))
+        popup = folium.Popup(branca.element.IFrame(html=popup_html, width=320, height=150))
             
         folium.CircleMarker(
             location=[row.latitude, row.longitude],
@@ -197,7 +204,7 @@ def get_earthquake_map(df, show_pbounds=False):
 def get_map(params):
     df = get_earthquake_data(params)
     if df is not None:
-        map = get_earthquake_map(df, params['show_pbounds'])
+        map = get_earthquake_map(df, params['show_pbounds'], params['use_utc'])
         return map
     else:
         print('No earthquakes found! Please change selection options.')
@@ -214,16 +221,129 @@ def app():
     """
     , unsafe_allow_html=True)
 
+    st.title("Interactive Earthquake Map")
+
     
     data_params = {
         'use_circle_search': False,
         'circle_lat': 0,
         'circle_long': 0,
-        'circle_radius': 2
+        'circle_radius': 2,
+        'use_utc': False
     }
 
+    with st.popover("Legend"):
+        st.caption("Magnitude")
+        components.html(
+            """
+            <div id='maplegend' class='maplegend' 
+                style='position: absolute; z-index: 9999; background-color: rgba(255, 255, 255, 0.5);
+                padding: 10px; font-size: 10.5px; left: 0; top: 0;'>
+                <svg xmlns="http://www.w3.org/2000/svg" width="180" height="40">
+                    <circle cx="10" cy="9" r="9" fill="gray" stroke="black"/>
+                    <circle cx="30" cy="9" r="8" fill="gray" stroke="black"/>
+                    <circle cx="50" cy="9" r="7" fill="gray" stroke="black"/>
+                    <circle cx="70" cy="9" r="6" fill="gray" stroke="black"/>
+                    <circle cx="90" cy="9" r="5" fill="gray" stroke="black"/>
+                    <circle cx="110" cy="9" r="4" fill="gray" stroke="black"/>
+                    <circle cx="130" cy="9" r="3" fill="gray" stroke="black"/>
+                    <circle cx="150" cy="9" r="2" fill="gray" stroke="black"/>
+                    <circle cx="170" cy="9" r="1" fill="gray" stroke="black"/>
+                </svg>
+                <div class="number-2" style="left: 20px;">9</div>
+                <div class="number-2" style="left: 40px;">8</div>
+                <div class="number-2" style="left: 60px;">7</div>
+                <div class="number-2" style="left: 80px;">6</div>
+                <div class="number-2" style="left: 100px;">5</div>
+                <div class="number-2" style="left: 120px;">4</div>
+                <div class="number-2" style="left: 140px;">3</div>
+                <div class="number-2" style="left: 160px;">2</div>
+                <div class="number-2" style="left: 180px;">1</div>
+                
+            </div>
+            <style type='text/css'>
+                .mag-legend {
+                    position: relative;
+                    width: 180px;
+                    height: 60px;
+                }
+                .number-2 {
+                    position: absolute;
+                    bottom: 15px;
+                    transform: translateX(-50%);
+                    font-size: 12px;
+                    color: #333;
+                    font-family: Arial
+                }
+            </style>
+            """,
+        height=60)
+        st.caption("Depth (km)")
+        components.html(
+            """
+            <div id='maplegend' class='maplegend' 
+                style='position: absolute; z-index: 9999; background-color: rgba(255, 255, 255, 0.5);
+                padding: 10px; font-size: 10.5px; left: 0px; bottom: 0px;'>
+                <div class="colormap-container">
+                    <div class="colormap"></div><br>
+                    <div class="number" style="left: 0px;">0</div>
+                    <div class="number" style="left: 4%;">35</div>
+                    <div class="number" style="left: 9%;">70</div>
+                    <div class="number" style="left: 20%;">150</div>
+                    <div class="number" style="left: 38%;">300</div>
+                    <div class="number" style="left: 63%;">500</div>
+                    <div class="number" style="left: 100%;">800</div>
+                </div>
+            </div>
+                <style type='text/css'>
+                .mag-legend {
+                    position: relative;
+                    width: 180px;
+                    height: 40px;
+                }
+                .colormap-container {
+                    position: relative;
+                    width: 250px;
+                    height: 25px;
+                    margin-right: 10px;
+                    float: left;
+                }
+
+                .colormap {
+                    width: 250px;
+                    height: 10px;
+                    background: linear-gradient(to right, 
+                        #a020f0 0%,
+                        #a020f0 4.3756%,
+                        #0000ff 4.375%,
+                        #0000ff 8.75%,
+                        #008000 8.75%,
+                        #008000 18.75%, 
+                        #ffff00 18.75%,
+                        #ffff00 37.5%,
+                        #ffa500 37.5%,
+                        #ffa500 62.5%,
+                        #ff0000 62.5%,
+                        #ff0000 100%
+                    );
+                }
+
+                /* Define the number divs */
+                .number {
+                    position: absolute;
+                    bottom: 0;
+                    left: 70%;
+                    transform: translateX(-50%);
+                    font-size: 9px;
+                    color: #333;
+                    font-family: Arial
+                }
+
+                </style>
+            """,
+        height=40)
+
     with st.sidebar:
-        st.subheader("Options")
         with st.expander('Limits', expanded=True):
             limit_lst = [
                 10, 20, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
@@ -238,6 +358,8 @@ def app():
             else:
                 data_params['order'] = 'magnitude'
 
+
+
         with st.expander('Period'):
             time_range = st.radio(
                 "Select time range:",
@@ -247,21 +369,23 @@ def app():
 
 
             #select_latest = st.checkbox('Latest Available', True)
+            today = date.today()
+            today2 = datetime.now().isoformat()
             if time_range == "Today":
-                data_params['start_time'] = datetime.combine(date.today(), datetime.min.time()).isoformat()
-                data_params['end_time'] = datetime.now().isoformat()
+                data_params['start_time'] = datetime.combine(today, datetime.min.time()).isoformat()
+                data_params['end_time'] = today2
             elif time_range == "This week":
-                dt = datetime.combine(date.today(), datetime.min.time())
+                dt = datetime.combine(today, datetime.min.time())
                 data_params['start_time'] = (dt - timedelta(days=dt.weekday())).isoformat()
-                data_params['end_time'] = datetime.now().isoformat()
+                data_params['end_time'] = today2
             elif time_range == "This month":
-                data_params['start_time'] = datetime.combine(date.today().replace(day=1), datetime.min.time())
-                data_params['end_time'] = datetime.now().isoformat()
+                data_params['start_time'] = datetime.combine(today.replace(day=1), datetime.min.time())
+                data_params['end_time'] = today2
             elif time_range == "This year":
-                data_params['start_time'] = datetime.combine(date.today().replace(day=1, month=1), datetime.min.time())
-                data_params['end_time'] = datetime.now().isoformat()
+                data_params['start_time'] = datetime.combine(today.replace(day=1, month=1), datetime.min.time())
+                data_params['end_time'] = today2
             elif time_range == "Custom range":
-                yesterday = datetime.combine(date.today(), datetime.min.time()) - timedelta(1)
+                yesterday = datetime.combine(today, datetime.min.time()) - timedelta(1)
                 start_time = st.date_input('From', value=yesterday)
                 end_time = st.date_input('To', value='today')
                 data_params['start_time'] = start_time.isoformat()
@@ -289,133 +413,38 @@ def app():
                     'max_depth': depth_max,
                 })
 
-        with st.expander('Plate Boundaries', expanded=False):
-            data_params['show_pbounds'] = st.checkbox('Enable', key="chk_boundaries")
+        data_params['show_pbounds'] = st.checkbox('Show Plate Boundaries')
 
-        with st.expander('Auto Refresh', expanded=False):
-            ar = st.checkbox('Enable', key="chk_ar")
-            ar_period = st.slider('Interval (in min)', 0.5, 60., value=10., step=0.5, disabled=not ar)
-        st.write(f"Last updated on {datetime.now().isoformat()}")
-        st.write("Uses data from USGS Earthquake Catalog, courtesy of the U.S. Geological Survey")
+        
 
-    if ar:
-        st_autorefresh(interval=ar_period*60*1000)
+
     
-    col1, col2 = st.columns([0.9, 0.1])
+    col1, col2 = st.columns([0.8, 0.2])
 
     with col1:
         m = get_map(data_params)
         folium_static(m)
 
     with col2:
-        components.html(
-            """
-            <div id='maplegend' class='maplegend' 
-                style='position: absolute; z-index: 9999; background-color: rgba(255, 255, 255, 0.5);
-                border-radius: 6px; padding: 10px; font-size: 10.5px;'>
-
-            Depth (km)<br><br>
-            <div class="colormap-container">
-                <div class="colormap"></div><br>
-                <div class="number" style="top: -7px;">0</div>
-                <div class="number" style="top: 2%;">35</div>
-                <div class="number" style="top: 8%;">70</div>
-                <div class="number" style="top: 17%;">150</div>
-                <div class="number" style="top: 35%;">300</div>
-                <div class="number" style="top: 60%;">500</div>
-                <div class="number" style="top: 97%;">800</div>
-            </div>
-
-            <style type='text/css'>
-            .colormap-container {
-                position: relative;
-                width: 30px;
-                height: 200px;
-                margin-right: 10px;
-                float: left;
-            }
-
-            .colormap {
-                width: 10px;
-                height: 200px;
-                background: linear-gradient(to bottom, 
-                    #a020f0 0%,
-                    #a020f0 4.3756%,
-                    #0000ff 4.375%,
-                    #0000ff 8.75%,
-                    #008000 8.75%,
-                    #008000 18.75%, 
-                    #ffff00 18.75%,
-                    #ffff00 37.5%,
-                    #ffa500 37.5%,
-                    #ffa500 62.5%,
-                    #ff0000 62.5%,
-                    #ff0000 100%
-                );
-            }
-
-            /* Define the number divs */
-            .number {
-                position: absolute;
-                bottom: 0;
-                left: 70%;
-                transform: translateX(-50%);
-                font-size: 9px;
-                color: #333;
-            }
+        ar = st.checkbox('Auto Update', key="chk_ar")
+        if data_params['use_utc']:
+            st.caption(datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S (UTC%z)'))
+        else:
+            st.caption(utc_to_local(datetime.now(timezone.utc)).strftime('%Y-%m-%d %H:%M:%S (UTC%z)'))
+        if ar:
+            st_autorefresh(interval=1*60*1000)
+        if st.button("Refresh Earthquakes", disabled=ar):
+            st.rerun()
 
 
-            </style>
-            """,
-        height=260)
-        components.html(
-            """
-            <div class='mag-legend' 
-                style='position: absolute; z-index: 9999; background-color: rgba(255, 255, 255, 0.5);
-                border-radius: 6px; padding: 10px; font-size: 10.5px;'>
-                Magnitude
-                <svg xmlns="http://www.w3.org/2000/svg" width="50" height="1500">
-                    <circle cx="20" cy="30" r="11" fill="gray" stroke="black"/>
-                    <circle cx="20" cy="60" r="10" fill="gray" stroke="black"/>
-                    <circle cx="20" cy="90" r="9" fill="gray" stroke="black"/>
-                    <circle cx="20" cy="120" r="8" fill="gray" stroke="black"/>
-                    <circle cx="20" cy="150" r="7" fill="gray" stroke="black"/>
-                    <circle cx="20" cy="180" r="6" fill="gray" stroke="black"/>
-                    <circle cx="20" cy="210" r="5" fill="gray" stroke="black"/>
-                    <circle cx="20" cy="240" r="4" fill="gray" stroke="black"/>
-                    <circle cx="20" cy="270" r="3" fill="gray" stroke="black"/>
-                    <circle cx="20" cy="300" r="2" fill="gray" stroke="black"/>
-                </svg>
-                <div class="number" style="top: 45px;">10</div>
-                <div class="number" style="top: 75px;">9</div>
-                <div class="number" style="top: 105px;">8</div>
-                <div class="number" style="top: 135px;">7</div>
-                <div class="number" style="top: 165px;">6</div>
-                <div class="number" style="top: 195px;">5</div>
-                <div class="number" style="top: 225px;">4</div>
-                <div class="number" style="top: 255px;">3</div>
-                <div class="number" style="top: 285px;">2</div>
-                <div class="number" style="top: 315px;">1</div>
-                
-            </div>
-            <style type='text/css'>
-                .mag-legend {
-                    position: relative;
-                    width: 50px;
-                    height: 320px;
-                }
-                .number {
-                    position: absolute;
-                    bottom: 0;
-                    left: 75%;
-                    transform: translateX(-50%);
-                    font-size: 12px;
-                    color: #333;
-                }
-            </style>
-            
-            """,
-    height=400)
+        time_zone = st.radio(
+            "Select time zone:",
+            ["User Time Zone", "UTC"])
+        if time_zone == "User Time Zone":
+            data_params['use_utc'] = False
+        else:
+            data_params['use_utc'] = True
 
+    st.caption("Uses data from USGS Earthquake Catalog, courtesy of the U.S. Geological Survey")
 
 app()
