@@ -101,7 +101,7 @@ def get_plate_boundaries():
         )
     return boundaries
 
-def get_earthquake_map(df, show_pbounds=False, utc_time=False):
+def get_earthquake_map(df, tz, show_pbounds=False, utc_time=False):
     min_zoom = 2
     
     tile_graysale = folium.TileLayer(
@@ -167,7 +167,7 @@ def get_earthquake_map(df, show_pbounds=False, utc_time=False):
         if utc_time:
             earthquake_time = datetime.strptime(row.date_time, '%y/%m/%d %H:%M:%S').strftime('%Y-%m-%d %H:%M:%S (UTC%z)')
         else:
-            earthquake_time = utc_to_local(datetime.strptime(row.date_time, '%y/%m/%d %H:%M:%S')).astimezone().strftime('%Y-%m-%d %H:%M:%S (UTC%z)')
+            earthquake_time = pytz.utc.localize(datetime.strptime(row.date_time, '%y/%m/%d %H:%M:%S'), is_dst=False).astimezone(pytz.timezone(tz)).strftime('%Y-%m-%d %H:%M:%S (UTC%z)')
         
         popup_html = f"""
             <div style="font-family: Arial;">
@@ -208,7 +208,7 @@ def get_earthquake_map(df, show_pbounds=False, utc_time=False):
 def get_map(params):
     df = get_earthquake_data(params)
     if df is not None:
-        map = get_earthquake_map(df, params['show_pbounds'], params['use_utc'])
+        map = get_earthquake_map(df, params['tz'], params['show_pbounds'], params['use_utc'])
         return map
     else:
         print('No earthquakes found! Please change selection options.')
@@ -427,6 +427,8 @@ def app():
                 console.log(userTimezone)
                 return userTimezone
     })().then(returnValue => returnValue)""")
+
+    data_params['tz'] = tz
 
     time.sleep(1)
 
